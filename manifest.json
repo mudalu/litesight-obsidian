@@ -1,0 +1,9 @@
+{
+	"id": "litesight",
+	"name": "轻析 LiteSight",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "将轻析视频解析写入 Obsidian：导入历史或在库内提交链接",
+	"author": "LiteSight",
+	"isDesktopOnly": false
+}

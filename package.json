@@ -1,0 +1,24 @@
+{
+	"name": "litesight-obsidian",
+	"version": "0.1.0",
+	"private": true,
+	"description": "LiteSight Obsidian plugin",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "node esbuild.config.mjs production",
+		"test": "node --test --experimental-strip-types src/note.test.ts src/parse.test.ts"
+	},
+	"devDependencies": {
+		"@types/node": "^20.17.0",
+		"builtin-modules": "^3.3.0",
+		"esbuild": "^0.25.0",
+		"obsidian": "^1.7.2",
+		"typescript": "^5.6.3"
+	},
+	"dependencies": {
+		"d3": "7.8.5",
+		"markmap-common": "0.15.6",
+		"markmap-lib": "0.15.8",
+		"markmap-view": "0.15.8"
+	}
+}
