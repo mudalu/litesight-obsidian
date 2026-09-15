@@ -14942,43 +14942,64 @@ async function ensureFolder(app, folder) {
 }
 
 // src/transcript.ts
-var STAMP = /\[(\d+):(\d+(?:\.\d+)?),\d+:\d+(?:\.\d+)?\]/g;
 function formatCueTime(minPart, secPart) {
-  const total = Number.parseInt(minPart, 10) * 60 + Math.floor(Number.parseFloat(secPart));
+  const total = toInt(minPart) * 60 + Math.floor(toFloat(secPart));
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor(total % 3600 / 60);
   const seconds = total % 60;
-  const mm = String(minutes).padStart(2, "0");
-  const ss = String(seconds).padStart(2, "0");
-  return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
+  return hours > 0 ? `${hours}:${twoDigits(minutes)}:${twoDigits(seconds)}` : `${twoDigits(minutes)}:${twoDigits(seconds)}`;
 }
 function parseTranscriptCues(raw) {
-  var _a, _b;
   const cues = [];
-  const matches = Array.from(raw.matchAll(STAMP));
-  if (matches.length === 0) {
-    const text2 = raw.trim();
+  const starts = [];
+  const source = String(raw);
+  let i = 0;
+  while (i < source.length) {
+    const open = source.indexOf("[", i);
+    if (open < 0) {
+      break;
+    }
+    const close = source.indexOf("]", open + 1);
+    if (close < 0) {
+      break;
+    }
+    const inner = source.slice(open + 1, close);
+    const comma = inner.indexOf(",");
+    if (comma < 0) {
+      i = close + 1;
+      continue;
+    }
+    const startStamp = inner.slice(0, comma);
+    const colon = startStamp.indexOf(":");
+    if (colon < 0) {
+      i = close + 1;
+      continue;
+    }
+    const minPart = startStamp.slice(0, colon);
+    const secPart = startStamp.slice(colon + 1);
+    if (!isDigits(minPart) || !isSeconds(secPart)) {
+      i = close + 1;
+      continue;
+    }
+    starts.push({ index: open, end: close + 1, minPart, secPart });
+    i = close + 1;
+  }
+  if (starts.length === 0) {
+    const text2 = source.trim();
     return text2 ? [{ time: "", text: text2 }] : [];
   }
-  for (let i = 0; i < matches.length; i++) {
-    const match = matches[i];
-    if (!match) {
+  for (let n = 0; n < starts.length; n += 1) {
+    const current = starts[n];
+    if (!current) {
       continue;
     }
-    const minPart = match[1];
-    const secPart = match[2];
-    if (minPart === void 0 || secPart === void 0) {
-      continue;
-    }
-    const start2 = ((_a = match.index) != null ? _a : 0) + match[0].length;
-    const next = matches[i + 1];
-    const end = (_b = next == null ? void 0 : next.index) != null ? _b : raw.length;
-    const text2 = raw.slice(start2, end).replace(/\s+/g, " ").trim();
+    const next = starts[n + 1];
+    const text2 = source.slice(current.end, next ? next.index : source.length).replace(/\s+/g, " ").trim();
     if (!text2) {
       continue;
     }
     cues.push({
-      time: formatCueTime(minPart, secPart),
+      time: formatCueTime(current.minPart, current.secPart),
       text: text2
     });
   }
@@ -14986,6 +15007,46 @@ function parseTranscriptCues(raw) {
 }
 function formatTranscriptBlock(raw) {
   return parseTranscriptCues(raw).map((cue) => cue.time ? `${cue.time} ${cue.text}` : cue.text).join("\n");
+}
+function twoDigits(n) {
+  return n < 10 ? `0${n}` : String(n);
+}
+function toInt(value) {
+  let n = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    const code2 = value.charCodeAt(i);
+    if (code2 < 48 || code2 > 57) {
+      return 0;
+    }
+    n = n * 10 + (code2 - 48);
+  }
+  return n;
+}
+function toFloat(value) {
+  const dot = value.indexOf(".");
+  if (dot < 0) {
+    return toInt(value);
+  }
+  return toInt(value.slice(0, dot)) + toInt(value.slice(dot + 1)) / 10 ** (value.length - dot - 1);
+}
+function isDigits(value) {
+  if (!value) {
+    return false;
+  }
+  for (let i = 0; i < value.length; i += 1) {
+    const code2 = value.charCodeAt(i);
+    if (code2 < 48 || code2 > 57) {
+      return false;
+    }
+  }
+  return true;
+}
+function isSeconds(value) {
+  const dot = value.indexOf(".");
+  if (dot < 0) {
+    return isDigits(value);
+  }
+  return isDigits(value.slice(0, dot)) && isDigits(value.slice(dot + 1));
 }
 
 // src/note.ts
@@ -15041,7 +15102,9 @@ function buildNoteMarkdown(input) {
       pushSection(lines, heading2, body);
     }
   }
-  return lines.join("\n").trimEnd() + "\n";
+  const text2 = lines.join("\n");
+  return `${text2.replace(/[ \t\r\n]+$/u, "")}
+`;
 }
 function hasText(value) {
   return value != null && value.trim().length > 0;
@@ -15101,26 +15164,37 @@ function demoteMarkdownHeadings(markdown, levels) {
   }
   const shift = Math.min(levels, 5);
   let inFence = false;
-  return markdown.split("\n").map((line) => {
-    var _a, _b, _c;
+  const out = [];
+  for (const line of markdown.split("\n")) {
     const fence = line.trimStart().startsWith("```") || line.trimStart().startsWith("~~~");
     if (fence) {
       inFence = !inFence;
-      return line;
+      out.push(line);
+      continue;
     }
-    if (inFence) {
-      return line;
-    }
-    const match = /^(\s{0,3})(#{1,6})(\s+.*)$/.exec(line);
-    if (!match) {
-      return line;
-    }
-    const indent = (_a = match[1]) != null ? _a : "";
-    const hashes = (_b = match[2]) != null ? _b : "";
-    const rest = (_c = match[3]) != null ? _c : "";
-    const heading2 = "#".repeat(Math.min(hashes.length + shift, 6));
-    return `${indent}${heading2}${rest}`;
-  }).join("\n");
+    out.push(inFence ? line : demoteAtxHeading(line, shift));
+  }
+  return out.join("\n");
+}
+function demoteAtxHeading(line, shift) {
+  let i = 0;
+  while (i < line.length && i < 3 && line.charAt(i) === " ") {
+    i += 1;
+  }
+  const indent = line.slice(0, i);
+  let hashes = 0;
+  while (i < line.length && line.charAt(i) === "#") {
+    hashes += 1;
+    i += 1;
+  }
+  if (hashes < 1 || hashes > 6) {
+    return line;
+  }
+  const next = line.charAt(i);
+  if (next !== " " && next !== "	") {
+    return line;
+  }
+  return `${indent}${"#".repeat(Math.min(hashes + shift, 6))}${line.slice(i)}`;
 }
 
 // src/parse.ts
@@ -15219,7 +15293,6 @@ var LiteSightSettingTab = class extends import_obsidian3.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian3.Setting(containerEl).setName("\u8F7B\u6790 LiteSight").setHeading();
     new import_obsidian3.Setting(containerEl).setName("\u63D2\u4EF6\u4EE4\u724C").setDesc("\u5728\u8F7B\u6790\u7F51\u7AD9\u300C\u8D26\u53F7\u8BBE\u7F6E\u300D\u4E2D\u751F\u6210\uFF0Cls_ \u5F00\u5934").addText((text2) => {
       text2.inputEl.type = "password";
       text2.setPlaceholder("ls_...").setValue(this.plugin.settings.token).onChange(async (value) => {
@@ -27796,7 +27869,10 @@ function mountMindmap(container, markdown) {
     });
     const { root: root2 } = transformer.transform(markdown);
     mm.setData(root2);
-    capNodeWidths(mm.state.data);
+    const tree = mm.state.data;
+    if (isSizedNode(tree)) {
+      capNodeWidths(tree);
+    }
     mm.renderData();
   } catch (e) {
     container.createDiv({ cls: "litesight-mindmap-empty", text: "\u8111\u56FE\u6E32\u67D3\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u5185\u5BB9\u683C\u5F0F" });
@@ -27844,7 +27920,11 @@ function applyCompactView(mm) {
   const scale = Math.min((width - PAD * 2) / contentW, (height - PAD * 2) / contentH, 1);
   const x2 = PAD - minY * scale;
   const y2 = PAD - minX * scale;
-  mm.svg.call(mm.zoom.transform, identity2.translate(x2, y2).scale(scale));
+  const applyZoom = mm.zoom.transform.bind(mm.zoom);
+  mm.svg.call(applyZoom, identity2.translate(x2, y2).scale(scale));
+}
+function isSizedNode(value) {
+  return typeof value === "object" && value !== null;
 }
 
 // src/main.ts

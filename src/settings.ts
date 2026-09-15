@@ -67,7 +67,6 @@ export class LiteSightSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		new Setting(containerEl).setName("轻析 LiteSight").setHeading();
 
 		new Setting(containerEl)
 			.setName("插件令牌")

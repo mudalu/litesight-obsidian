@@ -50,7 +50,10 @@ export function mountMindmap(container: HTMLElement, markdown: string): () => vo
 		});
 		const { root } = transformer.transform(markdown);
 		mm.setData(root);
-		capNodeWidths(mm.state.data as SizedNode);
+		const tree = mm.state.data;
+		if (isSizedNode(tree)) {
+			capNodeWidths(tree);
+		}
 		mm.renderData();
 	} catch {
 		container.createDiv({ cls: "litesight-mindmap-empty", text: "脑图渲染失败，请检查内容格式" });
@@ -101,5 +104,14 @@ function applyCompactView(this: void, mm: Markmap): void {
 	const scale = Math.min((width - PAD * 2) / contentW, (height - PAD * 2) / contentH, 1);
 	const x = PAD - minY * scale;
 	const y = PAD - minX * scale;
-	mm.svg.call(mm.zoom.transform, zoomIdentity.translate(x, y).scale(scale));
+	const applyZoom = mm.zoom.transform.bind(mm.zoom) as (
+		this: void,
+		selection: typeof mm.svg,
+		transform: ReturnType<typeof zoomIdentity.translate>,
+	) => void;
+	mm.svg.call(applyZoom, zoomIdentity.translate(x, y).scale(scale));
+}
+
+function isSizedNode(value: unknown): value is SizedNode {
+	return typeof value === "object" && value !== null;
 }

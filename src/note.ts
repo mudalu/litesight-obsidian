@@ -78,7 +78,8 @@ export function buildNoteMarkdown(input: NoteInput): string {
 			pushSection(lines, heading, body);
 		}
 	}
-	return lines.join("\n").trimEnd() + "\n";
+	const text = lines.join("\n");
+	return `${text.replace(/[ \t\r\n]+$/u, "")}\n`;
 }
 
 function hasText(value: string | null | undefined): value is string {
@@ -145,23 +146,36 @@ export function demoteMarkdownHeadings(markdown: string, levels: number): string
 	}
 	const shift = Math.min(levels, 5);
 	let inFence = false;
-	return markdown.split("\n").map((line) => {
+	const out: string[] = [];
+	for (const line of markdown.split("\n")) {
 		const fence = line.trimStart().startsWith("```") || line.trimStart().startsWith("~~~");
 		if (fence) {
 			inFence = !inFence;
-			return line;
+			out.push(line);
+			continue;
 		}
-		if (inFence) {
-			return line;
-		}
-		const match = /^(\s{0,3})(#{1,6})(\s+.*)$/.exec(line);
-		if (!match) {
-			return line;
-		}
-		const indent = match[1] ?? "";
-		const hashes = match[2] ?? "";
-		const rest = match[3] ?? "";
-		const heading = "#".repeat(Math.min(hashes.length + shift, 6));
-		return `${indent}${heading}${rest}`;
-	}).join("\n");
+		out.push(inFence ? line : demoteAtxHeading(line, shift));
+	}
+	return out.join("\n");
+}
+
+function demoteAtxHeading(line: string, shift: number): string {
+	let i = 0;
+	while (i < line.length && i < 3 && line.charAt(i) === " ") {
+		i += 1;
+	}
+	const indent = line.slice(0, i);
+	let hashes = 0;
+	while (i < line.length && line.charAt(i) === "#") {
+		hashes += 1;
+		i += 1;
+	}
+	if (hashes < 1 || hashes > 6) {
+		return line;
+	}
+	const next = line.charAt(i);
+	if (next !== " " && next !== "\t") {
+		return line;
+	}
+	return `${indent}${"#".repeat(Math.min(hashes + shift, 6))}${line.slice(i)}`;
 }
