@@ -1,9 +1,10 @@
+import { builtinModules } from "node:module";
 import esbuild from "esbuild";
 import process from "process";
-import builtins from "builtin-modules";
 
 const banner = `/* LiteSight Obsidian plugin */`;
 const prod = process.argv[2] === "production";
+const builtins = builtinModules.filter((name) => !name.startsWith("_"));
 
 const context = await esbuild.context({
 	banner: { js: banner },
@@ -24,6 +25,7 @@ const context = await esbuild.context({
 		"@lezer/highlight",
 		"@lezer/lr",
 		...builtins,
+		...builtins.map((name) => `node:${name}`),
 	],
 	format: "cjs",
 	target: "es2018",

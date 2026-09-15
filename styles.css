@@ -278,14 +278,16 @@
 }
 
 /* 测量节点时避免被 Obsidian 块级样式撑成整栏宽度 */
-.markmap-container {
-	width: max-content !important;
-	max-width: none !important;
+body > .markmap-container {
+	width: max-content;
+	max-width: none;
+	height: auto;
 }
 
-.markmap-container .markmap-foreign,
-.markmap-container .markmap-foreign > div {
-	display: inline-block !important;
-	width: max-content !important;
-	max-width: 180px !important;
+body > .markmap-container > .markmap-foreign,
+body > .markmap-container > .markmap-foreign > div {
+	display: inline-block;
+	width: max-content;
+	max-width: 180px;
+	box-sizing: content-box;
 }

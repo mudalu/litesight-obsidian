@@ -1,6 +1,6 @@
 {
 	"name": "litesight-obsidian",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"private": true,
 	"description": "LiteSight Obsidian plugin",
 	"scripts": {
@@ -10,7 +10,6 @@
 	},
 	"devDependencies": {
 		"@types/node": "^20.17.0",
-		"builtin-modules": "^3.3.0",
 		"esbuild": "^0.25.0",
 		"obsidian": "^1.7.2",
 		"typescript": "^5.6.3"

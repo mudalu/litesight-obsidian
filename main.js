@@ -14944,7 +14944,7 @@ async function ensureFolder(app, folder) {
 // src/transcript.ts
 var STAMP = /\[(\d+):(\d+(?:\.\d+)?),\d+:\d+(?:\.\d+)?\]/g;
 function formatCueTime(minPart, secPart) {
-  const total = parseInt(minPart, 10) * 60 + Math.floor(parseFloat(secPart));
+  const total = Number.parseInt(minPart, 10) * 60 + Math.floor(Number.parseFloat(secPart));
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor(total % 3600 / 60);
   const seconds = total % 60;
@@ -14955,21 +14955,30 @@ function formatCueTime(minPart, secPart) {
 function parseTranscriptCues(raw) {
   var _a, _b;
   const cues = [];
-  const matches = [...raw.matchAll(STAMP)];
+  const matches = Array.from(raw.matchAll(STAMP));
   if (matches.length === 0) {
     const text2 = raw.trim();
     return text2 ? [{ time: "", text: text2 }] : [];
   }
   for (let i = 0; i < matches.length; i++) {
     const match = matches[i];
+    if (!match) {
+      continue;
+    }
+    const minPart = match[1];
+    const secPart = match[2];
+    if (minPart === void 0 || secPart === void 0) {
+      continue;
+    }
     const start2 = ((_a = match.index) != null ? _a : 0) + match[0].length;
-    const end = i + 1 < matches.length ? (_b = matches[i + 1].index) != null ? _b : raw.length : raw.length;
+    const next = matches[i + 1];
+    const end = (_b = next == null ? void 0 : next.index) != null ? _b : raw.length;
     const text2 = raw.slice(start2, end).replace(/\s+/g, " ").trim();
     if (!text2) {
       continue;
     }
     cues.push({
-      time: formatCueTime(match[1], match[2]),
+      time: formatCueTime(minPart, secPart),
       text: text2
     });
   }
@@ -15093,6 +15102,7 @@ function demoteMarkdownHeadings(markdown, levels) {
   const shift = Math.min(levels, 5);
   let inFence = false;
   return markdown.split("\n").map((line) => {
+    var _a, _b, _c;
     const fence = line.trimStart().startsWith("```") || line.trimStart().startsWith("~~~");
     if (fence) {
       inFence = !inFence;
@@ -15101,13 +15111,15 @@ function demoteMarkdownHeadings(markdown, levels) {
     if (inFence) {
       return line;
     }
-    const match = line.match(/^(\s{0,3})(#{1,6})(\s+.*)$/);
+    const match = /^(\s{0,3})(#{1,6})(\s+.*)$/.exec(line);
     if (!match) {
       return line;
     }
-    const hashes = match[2].length + shift;
-    const heading2 = "#".repeat(Math.min(hashes, 6));
-    return `${match[1]}${heading2}${match[3]}`;
+    const indent = (_a = match[1]) != null ? _a : "";
+    const hashes = (_b = match[2]) != null ? _b : "";
+    const rest = (_c = match[3]) != null ? _c : "";
+    const heading2 = "#".repeat(Math.min(hashes.length + shift, 6));
+    return `${indent}${heading2}${rest}`;
   }).join("\n");
 }
 
@@ -15179,10 +15191,35 @@ var LiteSightSettingTab = class extends import_obsidian3.PluginSettingTab {
     super(app, plugin2);
     this.plugin = plugin2;
   }
+  getSettingDefinitions() {
+    return [
+      {
+        name: "\u63D2\u4EF6\u4EE4\u724C",
+        desc: "\u5728\u8F7B\u6790\u7F51\u7AD9\u300C\u8D26\u53F7\u8BBE\u7F6E\u300D\u4E2D\u751F\u6210\uFF0Cls_ \u5F00\u5934",
+        control: { type: "text", key: "token", placeholder: "ls_..." }
+      },
+      {
+        name: "\u7B14\u8BB0\u6587\u4EF6\u5939",
+        desc: "\u76F8\u5BF9\u5F53\u524D\u5E93\u7684\u76EE\u5F55\uFF0C\u4E0D\u5B58\u5728\u65F6\u5BFC\u5165\u4F1A\u521B\u5EFA",
+        control: { type: "text", key: "folder", placeholder: "LiteSight" }
+      },
+      {
+        name: "\u5B98\u7F51",
+        desc: "\u5145\u503C\u4E0E\u751F\u6210\u4EE4\u724C\u8BF7\u5728\u8F7B\u6790\u5B98\u7F51\u5B8C\u6210",
+        render: (setting) => {
+          setting.addButton(
+            (button) => button.setButtonText("\u6253\u5F00\u5B98\u7F51").onClick(() => {
+              window.open(websiteHomeUrl());
+            })
+          );
+        }
+      }
+    ];
+  }
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "\u8F7B\u6790 LiteSight" });
+    new import_obsidian3.Setting(containerEl).setName("\u8F7B\u6790 LiteSight").setHeading();
     new import_obsidian3.Setting(containerEl).setName("\u63D2\u4EF6\u4EE4\u724C").setDesc("\u5728\u8F7B\u6790\u7F51\u7AD9\u300C\u8D26\u53F7\u8BBE\u7F6E\u300D\u4E2D\u751F\u6210\uFF0Cls_ \u5F00\u5934").addText((text2) => {
       text2.inputEl.type = "password";
       text2.setPlaceholder("ls_...").setValue(this.plugin.settings.token).onChange(async (value) => {
@@ -15327,7 +15364,8 @@ var ImportModal = class extends import_obsidian4.Modal {
       return;
     }
     const url = extractHttpUrl(raw);
-    if (!window.confirm("\u5C06\u63D0\u4EA4\u8BE5\u94FE\u63A5\u5E76\u6263\u9664\u79EF\u5206\uFF0C\u662F\u5426\u7EE7\u7EED\uFF1F")) {
+    const confirmed = await confirmAction(this.app, "\u5C06\u63D0\u4EA4\u8BE5\u94FE\u63A5\u5E76\u6263\u9664\u79EF\u5206\uFF0C\u662F\u5426\u7EE7\u7EED\uFF1F");
+    if (!confirmed) {
       return;
     }
     this.parseBusy = true;
@@ -15578,9 +15616,15 @@ var ImportModal = class extends import_obsidian4.Modal {
     }
   }
   async mergeSavedImports() {
-    const saved = this.plugin.settings.importedTasks;
+    const saved = { ...this.plugin.settings.importedTasks };
     let dirty = false;
-    for (const [id2, path2] of Object.entries(saved)) {
+    for (const id2 of Object.keys(saved)) {
+      const path2 = saved[id2];
+      if (!path2) {
+        delete saved[id2];
+        dirty = true;
+        continue;
+      }
       const file = this.app.vault.getAbstractFileByPath(path2);
       if (file instanceof import_obsidian4.TFile) {
         this.imported.set(id2, path2);
@@ -15589,6 +15633,7 @@ var ImportModal = class extends import_obsidian4.Modal {
         dirty = true;
       }
     }
+    this.plugin.settings.importedTasks = saved;
     if (dirty) {
       await this.plugin.saveSettings();
     }
@@ -15649,6 +15694,34 @@ var ImportModal = class extends import_obsidian4.Modal {
     }
   }
 };
+function confirmAction(app, message) {
+  return new Promise((resolve) => {
+    const modal = new import_obsidian4.Modal(app);
+    modal.setTitle("\u786E\u8BA4\u89E3\u6790");
+    modal.contentEl.createEl("p", { text: message });
+    const buttons = modal.contentEl.createDiv({ cls: "modal-button-container" });
+    let settled = false;
+    const finish = (value) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      modal.close();
+      resolve(value);
+    };
+    buttons.createEl("button", { text: "\u53D6\u6D88" }).addEventListener("click", () => finish(false));
+    buttons.createEl("button", { text: "\u7EE7\u7EED", cls: "mod-cta" }).addEventListener("click", () => finish(true));
+    const originalClose = modal.close.bind(modal);
+    modal.close = () => {
+      originalClose();
+      if (!settled) {
+        settled = true;
+        resolve(false);
+      }
+    };
+    modal.open();
+  });
+}
 
 // src/cues.ts
 var import_obsidian5 = require("obsidian");
@@ -27699,8 +27772,7 @@ function mountMindmap(container, markdown) {
   container.addClass("litesight-mindmap");
   const toolbar = container.createDiv({ cls: "litesight-mindmap-toolbar" });
   const canvas = container.createDiv({ cls: "litesight-mindmap-canvas" });
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  canvas.appendChild(svg);
+  const svg = canvas.createSvg("svg");
   if (!markdown.trim()) {
     container.createDiv({ cls: "litesight-mindmap-empty", text: "\u6CA1\u6709\u8111\u56FE\u5185\u5BB9" });
     return () => void 0;
@@ -27722,7 +27794,6 @@ function mountMindmap(container, markdown) {
         return COLORS[((_a = node.depth) != null ? _a : 0) % COLORS.length];
       }
     });
-    ensureMeasureStyle();
     const { root: root2 } = transformer.transform(markdown);
     mm.setData(root2);
     capNodeWidths(mm.state.data);
@@ -27732,13 +27803,17 @@ function mountMindmap(container, markdown) {
     return () => void 0;
   }
   const layout = () => applyCompactView(mm);
-  requestAnimationFrame(layout);
+  window.requestAnimationFrame(layout);
   const addBtn = (label, title, onClick) => {
     const button = toolbar.createEl("button", { text: label, attr: { type: "button", title } });
     button.addEventListener("click", onClick);
   };
-  addBtn("\u653E\u5927", "\u653E\u5927", () => mm.rescale(1.25));
-  addBtn("\u7F29\u5C0F", "\u7F29\u5C0F", () => mm.rescale(0.8));
+  addBtn("\u653E\u5927", "\u653E\u5927", () => {
+    void mm.rescale(1.25);
+  });
+  addBtn("\u7F29\u5C0F", "\u7F29\u5C0F", () => {
+    void mm.rescale(0.8);
+  });
   addBtn("\u9002\u5E94", "\u6309\u5185\u5BB9\u9002\u914D\uFF0C\u4E0D\u62C9\u957F\u8FDE\u7EBF", layout);
   const observer = new ResizeObserver((entries) => {
     var _a;
@@ -27753,29 +27828,6 @@ function mountMindmap(container, markdown) {
     observer.disconnect();
     mm.destroy();
   };
-}
-var MEASURE_STYLE_ID = "litesight-markmap-measure";
-function ensureMeasureStyle() {
-  if (document.getElementById(MEASURE_STYLE_ID)) {
-    return;
-  }
-  const style = document.createElement("style");
-  style.id = MEASURE_STYLE_ID;
-  style.textContent = `
-.markmap-container {
-	width: max-content !important;
-	max-width: none !important;
-	height: auto !important;
-}
-.markmap-container .markmap-foreign,
-.markmap-container .markmap-foreign > div {
-	display: inline-block !important;
-	width: max-content !important;
-	max-width: 180px !important;
-	box-sizing: content-box !important;
-}
-`;
-  document.head.appendChild(style);
 }
 function applyCompactView(mm) {
   const svgEl = mm.svg.node();
@@ -27806,7 +27858,7 @@ var LiteSightPlugin = class extends import_obsidian7.Plugin {
     (0, import_obsidian7.addIcon)(LITESIGHT_ICON_ID, LITESIGHT_ICON_SVG);
     this.addRibbonIcon(LITESIGHT_ICON_ID, "\u8F7B\u6790 LiteSight", () => this.openImport());
     this.addCommand({
-      id: "sync-litesight-history",
+      id: "parse-and-import",
       name: "\u8F7B\u6790\uFF1A\u89E3\u6790\u4E0E\u5BFC\u5165",
       callback: () => this.openImport()
     });
@@ -27827,13 +27879,18 @@ var LiteSightPlugin = class extends import_obsidian7.Plugin {
     new ImportModal(this).open();
   }
   openSettingTab() {
-    const setting = this.app.setting;
+    const setting = getSettingsUi(this.app);
     setting == null ? void 0 : setting.open();
     setting == null ? void 0 : setting.openTabById(this.manifest.id);
   }
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    this.settings.importedTasks = { ...this.settings.importedTasks || {} };
+    var _a;
+    const data = await this.loadData();
+    this.settings = {
+      token: typeof (data == null ? void 0 : data.token) === "string" ? data.token : DEFAULT_SETTINGS.token,
+      folder: typeof (data == null ? void 0 : data.folder) === "string" && data.folder.trim() ? data.folder : DEFAULT_SETTINGS.folder,
+      importedTasks: { ...(_a = data == null ? void 0 : data.importedTasks) != null ? _a : {} }
+    };
   }
   async saveSettings() {
     await this.saveData(this.settings);
@@ -27845,6 +27902,16 @@ var LiteSightPlugin = class extends import_obsidian7.Plugin {
     return websiteCreditsUrl();
   }
 };
+function getSettingsUi(app) {
+  if (!("setting" in app)) {
+    return void 0;
+  }
+  const setting = app.setting;
+  if (!setting || typeof setting.open !== "function" || typeof setting.openTabById !== "function") {
+    return void 0;
+  }
+  return setting;
+}
 /*! Bundled license information:
 
 markmap-common/dist/index.mjs:

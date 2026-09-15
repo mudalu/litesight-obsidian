@@ -6,7 +6,7 @@ export interface TranscriptCue {
 const STAMP = /\[(\d+):(\d+(?:\.\d+)?),\d+:\d+(?:\.\d+)?\]/g;
 
 export function formatCueTime(minPart: string, secPart: string): string {
-	const total = parseInt(minPart, 10) * 60 + Math.floor(parseFloat(secPart));
+	const total = Number.parseInt(minPart, 10) * 60 + Math.floor(Number.parseFloat(secPart));
 	const hours = Math.floor(total / 3600);
 	const minutes = Math.floor((total % 3600) / 60);
 	const seconds = total % 60;
@@ -17,21 +17,30 @@ export function formatCueTime(minPart: string, secPart: string): string {
 
 export function parseTranscriptCues(raw: string): TranscriptCue[] {
 	const cues: TranscriptCue[] = [];
-	const matches = [...raw.matchAll(STAMP)];
+	const matches = Array.from(raw.matchAll(STAMP));
 	if (matches.length === 0) {
 		const text = raw.trim();
 		return text ? [{ time: "", text }] : [];
 	}
 	for (let i = 0; i < matches.length; i++) {
 		const match = matches[i];
+		if (!match) {
+			continue;
+		}
+		const minPart = match[1];
+		const secPart = match[2];
+		if (minPart === undefined || secPart === undefined) {
+			continue;
+		}
 		const start = (match.index ?? 0) + match[0].length;
-		const end = i + 1 < matches.length ? (matches[i + 1].index ?? raw.length) : raw.length;
+		const next = matches[i + 1];
+		const end = next?.index ?? raw.length;
 		const text = raw.slice(start, end).replace(/\s+/g, " ").trim();
 		if (!text) {
 			continue;
 		}
 		cues.push({
-			time: formatCueTime(match[1], match[2]),
+			time: formatCueTime(minPart, secPart),
 			text,
 		});
 	}

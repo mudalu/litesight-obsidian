@@ -33,10 +33,41 @@ export class LiteSightSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
+	getSettingDefinitions(): Array<{
+		name: string;
+		desc?: string;
+		control?: { type: string; key: string; placeholder?: string };
+		render?: (setting: Setting) => void;
+	}> {
+		return [
+			{
+				name: "插件令牌",
+				desc: "在轻析网站「账号设置」中生成，ls_ 开头",
+				control: { type: "text", key: "token", placeholder: "ls_..." },
+			},
+			{
+				name: "笔记文件夹",
+				desc: "相对当前库的目录，不存在时导入会创建",
+				control: { type: "text", key: "folder", placeholder: "LiteSight" },
+			},
+			{
+				name: "官网",
+				desc: "充值与生成令牌请在轻析官网完成",
+				render: (setting) => {
+					setting.addButton((button) =>
+						button.setButtonText("打开官网").onClick(() => {
+							window.open(websiteHomeUrl());
+						}),
+					);
+				},
+			},
+		];
+	}
+
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		containerEl.createEl("h2", { text: "轻析 LiteSight" });
+		new Setting(containerEl).setName("轻析 LiteSight").setHeading();
 
 		new Setting(containerEl)
 			.setName("插件令牌")

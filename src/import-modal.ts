@@ -1,4 +1,4 @@
-import { Modal, Notice, TFile } from "obsidian";
+import { App, Modal, Notice, TFile } from "obsidian";
 import type LiteSightPlugin from "./main";
 import { LiteSightApi, PluginApiError, type TaskListItem } from "./api";
 import { ensureFolder, parseTaskIdFromMarkdown, scanImportedTaskIds } from "./imported";
@@ -144,7 +144,8 @@ export class ImportModal extends Modal {
 			return;
 		}
 		const url = extractHttpUrl(raw);
-		if (!window.confirm("将提交该链接并扣除积分，是否继续？")) {
+		const confirmed = await confirmAction(this.app, "将提交该链接并扣除积分，是否继续？");
+		if (!confirmed) {
 			return;
 		}
 		this.parseBusy = true;
@@ -409,9 +410,15 @@ export class ImportModal extends Modal {
 	}
 
 	private async mergeSavedImports(): Promise<void> {
-		const saved = this.plugin.settings.importedTasks;
+		const saved: Record<string, string> = { ...this.plugin.settings.importedTasks };
 		let dirty = false;
-		for (const [id, path] of Object.entries(saved)) {
+		for (const id of Object.keys(saved)) {
+			const path = saved[id];
+			if (!path) {
+				delete saved[id];
+				dirty = true;
+				continue;
+			}
 			const file = this.app.vault.getAbstractFileByPath(path);
 			if (file instanceof TFile) {
 				this.imported.set(id, path);
@@ -420,6 +427,7 @@ export class ImportModal extends Modal {
 				dirty = true;
 			}
 		}
+		this.plugin.settings.importedTasks = saved;
 		if (dirty) {
 			await this.plugin.saveSettings();
 		}
@@ -483,4 +491,33 @@ export class ImportModal extends Modal {
 			this.plugin.openSettingTab();
 		}
 	}
+}
+
+function confirmAction(app: App, message: string): Promise<boolean> {
+	return new Promise((resolve) => {
+		const modal = new Modal(app);
+		modal.setTitle("确认解析");
+		modal.contentEl.createEl("p", { text: message });
+		const buttons = modal.contentEl.createDiv({ cls: "modal-button-container" });
+		let settled = false;
+		const finish = (value: boolean) => {
+			if (settled) {
+				return;
+			}
+			settled = true;
+			modal.close();
+			resolve(value);
+		};
+		buttons.createEl("button", { text: "取消" }).addEventListener("click", () => finish(false));
+		buttons.createEl("button", { text: "继续", cls: "mod-cta" }).addEventListener("click", () => finish(true));
+		const originalClose = modal.close.bind(modal);
+		modal.close = () => {
+			originalClose();
+			if (!settled) {
+				settled = true;
+				resolve(false);
+			}
+		};
+		modal.open();
+	});
 }

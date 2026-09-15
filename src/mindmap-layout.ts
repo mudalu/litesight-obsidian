@@ -1,6 +1,6 @@
 export const NODE_WIDTH_CAP = 180;
 
-type SizedNode = {
+export type SizedNode = {
 	state?: { size?: number[] };
 	children?: SizedNode[] | null;
 };

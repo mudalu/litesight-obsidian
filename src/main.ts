@@ -1,4 +1,4 @@
-import { addIcon, Notice, Plugin } from "obsidian";
+import { addIcon, App, Notice, Plugin } from "obsidian";
 import { ImportModal } from "./import-modal";
 import { LiteSightCuesChild } from "./cues";
 import { LITESIGHT_ICON_ID, LITESIGHT_ICON_SVG } from "./icon";
@@ -13,7 +13,7 @@ export default class LiteSightPlugin extends Plugin {
 		addIcon(LITESIGHT_ICON_ID, LITESIGHT_ICON_SVG);
 		this.addRibbonIcon(LITESIGHT_ICON_ID, "轻析 LiteSight", () => this.openImport());
 		this.addCommand({
-			id: "sync-litesight-history",
+			id: "parse-and-import",
 			name: "轻析：解析与导入",
 			callback: () => this.openImport(),
 		});
@@ -36,14 +36,18 @@ export default class LiteSightPlugin extends Plugin {
 	}
 
 	openSettingTab(): void {
-		const setting = (this.app as unknown as { setting?: { open: () => void; openTabById: (id: string) => void } }).setting;
+		const setting = getSettingsUi(this.app);
 		setting?.open();
 		setting?.openTabById(this.manifest.id);
 	}
 
 	async loadSettings(): Promise<void> {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-		this.settings.importedTasks = { ...(this.settings.importedTasks || {}) };
+		const data = (await this.loadData()) as Partial<LiteSightSettings> | null;
+		this.settings = {
+			token: typeof data?.token === "string" ? data.token : DEFAULT_SETTINGS.token,
+			folder: typeof data?.folder === "string" && data.folder.trim() ? data.folder : DEFAULT_SETTINGS.folder,
+			importedTasks: { ...(data?.importedTasks ?? {}) },
+		};
 	}
 
 	async saveSettings(): Promise<void> {
@@ -57,4 +61,20 @@ export default class LiteSightPlugin extends Plugin {
 	creditsUrl(): string {
 		return websiteCreditsUrl();
 	}
+}
+
+interface SettingsUi {
+	open(): void;
+	openTabById(id: string): void;
+}
+
+function getSettingsUi(app: App): SettingsUi | undefined {
+	if (!("setting" in app)) {
+		return undefined;
+	}
+	const setting = (app as App & { setting?: SettingsUi }).setting;
+	if (!setting || typeof setting.open !== "function" || typeof setting.openTabById !== "function") {
+		return undefined;
+	}
+	return setting;
 }

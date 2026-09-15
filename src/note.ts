@@ -154,12 +154,14 @@ export function demoteMarkdownHeadings(markdown: string, levels: number): string
 		if (inFence) {
 			return line;
 		}
-		const match = line.match(/^(\s{0,3})(#{1,6})(\s+.*)$/);
+		const match = /^(\s{0,3})(#{1,6})(\s+.*)$/.exec(line);
 		if (!match) {
 			return line;
 		}
-		const hashes = match[2].length + shift;
-		const heading = "#".repeat(Math.min(hashes, 6));
-		return `${match[1]}${heading}${match[3]}`;
+		const indent = match[1] ?? "";
+		const hashes = match[2] ?? "";
+		const rest = match[3] ?? "";
+		const heading = "#".repeat(Math.min(hashes.length + shift, 6));
+		return `${indent}${heading}${rest}`;
 	}).join("\n");
 }

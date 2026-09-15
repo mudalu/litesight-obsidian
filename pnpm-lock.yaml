@@ -24,9 +24,6 @@ importers:
       '@types/node':
         specifier: ^20.17.0
         version: 20.19.43
-      builtin-modules:
-        specifier: ^3.3.0
-        version: 3.3.0
       esbuild:
         specifier: ^0.25.0
         version: 0.25.12
@@ -327,10 +324,6 @@ packages:
 
   autolinker@3.16.2:
     resolution: {integrity: sha512-JiYl7j2Z19F9NdTmirENSUUIIL/9MytEWtmzhfmsKPCp9E+G35Y0UNCMoM9tFigxT59qSc8Ml2dlZXOCVTYwuA==}
-
-  builtin-modules@3.3.0:
-    resolution: {integrity: sha512-zhaCDicdLuWN5UbN5IMnFqNMhNfo919sH85y2/ea+5Yg9TsTkeZxpL+JLbp6cgYFS4sRLp3YV4S6yDuqVWHYOw==}
-    engines: {node: '>=6'}
 
   commander@7.2.0:
     resolution: {integrity: sha512-QrWXB+ZQSVPmIWIhtEO9H+gwHaMGYiF5ChvoJ+K9ZGHG/sVsa6yiesAD1GC/x46sET00Xlwo1u49RVVVzvcSkw==}
@@ -811,8 +804,6 @@ snapshots:
   autolinker@3.16.2:
     dependencies:
       tslib: 2.8.1
-
-  builtin-modules@3.3.0: {}
 
   commander@7.2.0: {}
 
